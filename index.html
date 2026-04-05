@@ -77,9 +77,26 @@
 
 <script>
 
-  // Thêm dòng này ngay đầu phần script (Nhớ thay bằng link /exec thực tế của anh)
-  const GAS_URL = "https://script.google.com/macros/s/AKfycbwSwz0wxoTkP5Wfygfr8YBoz3J2qu-l5YkU5GelF8j820qaXQTET2GWKcwSDav3iKS1pA/exec"; 
+// ==========================================
+  // TỰ ĐỘNG LẤY LINK BACKEND TỪ URL (KHÔNG CHỐT CỨNG NỮA)
+  // ==========================================
+  const urlParams = new URLSearchParams(window.location.search);
+  const apiID = urlParams.get('api');
+  let GAS_URL = "";
 
+  // Nếu link không có mã api (Ví dụ SV tự gõ tay link github), chặn luôn:
+  if (!apiID) {
+      document.addEventListener("DOMContentLoaded", () => {
+          document.querySelector('.box').innerHTML = `
+              <h2 style="color:#d93025; font-size:40px;">⚠️</h2>
+              <h3 style="color:#d93025;">ĐƯỜNG LINK KHÔNG HỢP LỆ</h3>
+              <p style="margin-top:10px; color:#5f6368;">Vui lòng dùng đúng Link do Giảng viên cung cấp cho lớp!</p>
+          `;
+      });
+  } else {
+      // Tự động ghép thành link /exec hoàn chỉnh
+      GAS_URL = "https://script.google.com/macros/s/" + apiID + "/exec";
+  }
 
   // --- UTILS ---
   function hasForbiddenChars(str) {
