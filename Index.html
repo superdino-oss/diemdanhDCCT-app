@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    /* CSS CƠ BẢN */
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: #f0f2f5; display: flex; justify-content: center; min-height: 100vh; padding: 15px; }
+    .box { background: #fff; width: 100%; max-width: 480px; padding: 20px; text-align: center; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    h2 { color: #1a73e8; font-size: 22px; margin-bottom: 5px; font-weight: 700; }
+    p.sub-title { color: #5f6368; font-size: 13px; margin-bottom: 20px; }
+    
+    #display-v-code { color: #d93025; font-size: 28px; letter-spacing: 5px; font-weight: bold; margin: 15px 0; background: #fce8e6; padding: 10px; border-radius: 8px; border: 1px dashed #d93025; }
+    
+    #video-container { width: 100%; background: #000; border-radius: 12px; overflow: hidden; position: relative; aspect-ratio: 3/4; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+    video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+    
+    input { width: 100%; padding: 14px; margin: 8px 0; border: 1px solid #dadce0; border-radius: 8px; font-size: 16px; outline: none; transition: 0.3s; }
+    input:focus { border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
+    
+    .sig-label { text-align: left; font-size: 13px; font-weight: 600; color: #444; display: block; margin-top: 15px; margin-bottom: 5px; }
+    #sig-canvas { border: 2px dashed #ccc; background: #fafafa; border-radius: 8px; width: 100%; height: 150px; touch-action: none; cursor: crosshair; }
+    .clear-btn { background: #f1f3f4; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-top: -30px; margin-right: 5px; float: right; color: #5f6368; position: relative; z-index: 5; font-weight: 600; }
+    
+    /* BUTTON STYLES */
+    .action-btn { width: 100%; padding: 16px; border: none; border-radius: 30px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 20px; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.2); display: block; text-decoration: none; text-align: center;}
+    .action-btn:active { transform: scale(0.98); box-shadow: none; }
+    
+    #btn-capture { background: #1a73e8; color: #fff; }
+    #btn-capture:disabled { background: #dadce0; color: #888; cursor: not-allowed; }
+    
+    #btn-download { background: #188038; color: #fff; display: none; } /* Mặc định ẩn */
+    
+    #msg { margin-top: 15px; font-size: 14px; font-weight: 600; min-height: 20px; word-wrap: break-word;}
+    
+    #ovl { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; color: #fff; padding: 30px; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+    #cam-overlay { position: absolute; top: 10px; left: 10px; background: rgba(217, 48, 37, 0.9); color: white; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; z-index: 10; display: flex; align-items: center; pointer-events: none; text-transform: uppercase; }
+    .state-notifying { animation: blinkNotification 1s infinite; }
+    .state-recording::before { content: ''; display: inline-block; width: 6px; height: 6px; background: white; border-radius: 50%; margin-right: 5px; animation: blinkDot 1s infinite; }
+    @keyframes blinkNotification { 50% { opacity: 0.5; } }
+    @keyframes blinkDot { 50% { opacity: 0; } }
+  </style>
+</head>
+<body>
+  <div id="ovl">
+    <h1 style="font-size: 40px; margin-bottom: 20px;">⚠️</h1>
+    <h3 style="color: #ffeb3b; margin-bottom: 10px;">TRÌNH DUYỆT KHÔNG HỖ TRỢ</h3>
+    <p style="line-height: 1.5;">Hệ thống không hoạt động trên Zalo/Facebook.<br>Vui lòng bấm vào dấu <b>(...)</b> ở góc phải màn hình và chọn:<br><br><b style="font-size: 18px; color: #81c995;">"Mở bằng trình duyệt"</b> (Chrome/Safari)</p>
+  </div>
+
+  <div class="box">
+    <h2>ĐIỂM DANH SINH VIÊN</h2>
+    <div id="display-v-code">----</div>
+    <p class="sub-title">Vui lòng nhập chính xác thông tin bên dưới</p>
+    
+    <input type="text" id="mssv" placeholder="Nhập Mã số sinh viên" oninput="this.value = this.value.toUpperCase()">
+    <input type="text" id="otp" placeholder="Nhập Mã OTP (Giảng viên cung cấp)" oninput="this.value = this.value.toUpperCase()">
+
+    <div id="video-container">
+      <div id="cam-overlay" class="state-notifying">Đang khởi động Camera...</div>
+      <video id="video" autoplay playsinline muted></video>
+    </div>
+
+    <div style="position: relative;">
+        <span class="sig-label">Ký tên xác nhận:</span>
+        <button class="clear-btn" onclick="clearSig()">Xóa ký lại</button>
+    </div>
+    <canvas id="sig-canvas"></canvas>
+    
+    <div id="msg"></div>
+
+    <button id="btn-capture" class="action-btn" onclick="takePhotoAndSend()">📸 CHỤP ẢNH & GỬI DỮ LIỆU</button>
+    
+    <a id="btn-download" class="action-btn" href="#" onclick="finishAttendance()">⬇️ TẢI ẢNH MINH CHỨNG VỀ MÁY</a>
+  </div>
+
+<script>
+
+  // Thêm dòng này ngay đầu phần script (Nhớ thay bằng link /exec thực tế của anh)
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbwSwz0wxoTkP5Wfygfr8YBoz3J2qu-l5YkU5GelF8j820qaXQTET2GWKcwSDav3iKS1pA/exec"; 
+
+
+  // --- UTILS ---
+  function hasForbiddenChars(str) {
+    if (!str) return false;
+    const forbiddenPattern = /[<>\/\\='"{}\[\]$`@#]/;
+    return forbiddenPattern.test(str);
+  }
+
+  let vCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+  document.getElementById('display-v-code').innerText = vCode;
+
+  let attendanceTurn = 1;
+  let deviceId = localStorage.getItem('attendance_device_id');
+  if (!deviceId) {
+      deviceId = 'ID-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9).toUpperCase();
+      localStorage.setItem('attendance_device_id', deviceId);
+  }
+
+  const video = document.getElementById('video');
+  const sigCanvas = document.getElementById('sig-canvas');
+  const sigCtx = sigCanvas.getContext('2d');
+  let drawing = false;
+  let hasSigned = false; 
+
+  function initSig() {
+    sigCanvas.width = sigCanvas.offsetWidth;
+    sigCanvas.height = sigCanvas.offsetHeight;
+    sigCtx.lineWidth = 3; 
+    sigCtx.strokeStyle = '#00008B'; 
+    sigCtx.lineCap = 'round';
+    sigCtx.lineJoin = 'round';
+  }
+
+  // --- EVENTS ---
+
+  document.getElementById('mssv').addEventListener('blur', async function() {
+    const m = this.value.trim();
+    if (m) {
+        if (hasForbiddenChars(m)) {
+            alert("❌ Lỗi: MSSV chứa ký tự không hợp lệ (@, #, <, >...)");
+            this.value = "";
+            return;
+        }
+        
+        // Hiển thị thông báo đang tải
+        document.getElementById('msg').innerText = "⏳ Đang kiểm tra lần điểm danh...";
+        document.getElementById('msg').style.color = "#5f6368";
+
+        try {
+            // Thay thế google.script.run bằng fetch
+            let response = await fetch(GAS_URL + "?action=getCount&mssv=" + m);
+            let res = await response.text();
+            
+            attendanceTurn = parseInt(res) || 1;
+            document.getElementById('msg').innerText = "ℹ️ Bạn đang điểm danh lần thứ: " + attendanceTurn;
+            document.getElementById('msg').style.color = "#1a73e8";
+        } catch (error) {
+            document.getElementById('msg').innerText = "⚠️ Lỗi mạng: Không thể lấy số lần điểm danh.";
+            document.getElementById('msg').style.color = "red";
+        }
+    }
+  });
+
+  function clearSig() { sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height); hasSigned = false; }
+  
+  // Canvas events
+  const startDraw = (e) => { drawing = true; sigCtx.beginPath(); const p = getPos(e); sigCtx.moveTo(p.x, p.y); };
+  const moveDraw = (e) => { 
+      if(!drawing) return; 
+      e.preventDefault(); 
+      const p = getPos(e); sigCtx.lineTo(p.x, p.y); sigCtx.stroke(); hasSigned = true; 
+  };
+  const endDraw = () => { drawing = false; };
+
+  sigCanvas.addEventListener('mousedown', startDraw);
+  sigCanvas.addEventListener('mousemove', moveDraw);
+  window.addEventListener('mouseup', endDraw);
+  sigCanvas.addEventListener('touchstart', startDraw);
+  sigCanvas.addEventListener('touchmove', moveDraw);
+  sigCanvas.addEventListener('touchend', endDraw);
+  
+  function getPos(e) { 
+      const rect = sigCanvas.getBoundingClientRect(); 
+      const cX = e.touches ? e.touches[0].clientX : e.clientX; 
+      const cY = e.touches ? e.touches[0].clientY : e.clientY; 
+      return { x: cX - rect.left, y: cY - rect.top }; 
+  }
+
+  // --- CAMERA ---
+  window.onload = async function() {
+    initSig();
+    if (/Zalo|FBAN|FBAV|Messenger/i.test(navigator.userAgent)) { 
+        document.getElementById('ovl').style.display='flex'; 
+        return; 
+    }
+    try { 
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }); 
+        video.srcObject = stream; 
+        video.onloadedmetadata = () => {
+            document.getElementById('cam-overlay').classList.remove('state-notifying'); 
+            document.getElementById('cam-overlay').classList.add('state-recording');    
+            document.getElementById('cam-overlay').innerHTML = '● REC | TRỰC TIẾP';       
+        };
+    } catch (err) { alert("⚠️ Không thể truy cập Camera! Hãy cấp quyền hoặc dùng trình duyệt Chrome."); }
+  };
+
+  // --- CAPTURE ---
+  function captureAll(m, o) {
+    if (video.videoWidth === 0) throw new Error("Camera chưa sẵn sàng!");
+    const main = document.createElement('canvas');
+    const ctx = main.getContext('2d');
+    main.width = 720; main.height = 1280; 
+    
+    ctx.fillStyle = "#fff"; ctx.fillRect(0,0,main.width,main.height);
+    ctx.save(); ctx.translate(main.width, 0); ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, main.width, main.height); ctx.restore();
+    
+    ctx.fillStyle = "rgba(255, 255, 255, 0.85)"; 
+    ctx.fillRect(20, main.height - 160, main.width - 40, 140);
+    ctx.strokeStyle = "#1a73e8"; ctx.lineWidth = 3; 
+    ctx.strokeRect(20, main.height - 160, main.width - 40, 140);
+    
+    ctx.font = "bold 30px Arial"; ctx.fillStyle = "#d93025";
+    ctx.fillText(`SV: ${m} (ĐD Lần: ${attendanceTurn})`, 40, main.height - 110);
+    ctx.font = "24px Arial"; ctx.fillStyle = "#202124";
+    ctx.fillText(`OTPs: ${vCode}`, 40, main.height - 70);
+    ctx.font = "20px Arial"; ctx.fillStyle = "#5f6368";
+    ctx.fillText(new Date().toLocaleString('vi-VN'), 40, main.height - 35);
+    
+    const sigW = 250, sigH = 120;
+    const posX = main.width - sigW - 30;
+    const posY = main.height - sigH - 30;
+    ctx.fillStyle = "rgba(255,255,255,0.6)"; 
+    ctx.fillRect(posX, posY, sigW, sigH);
+    ctx.strokeStyle = "#333"; ctx.lineWidth = 1; 
+    ctx.strokeRect(posX, posY, sigW, sigH);
+    ctx.drawImage(sigCanvas, posX, posY, sigW, sigH);
+    
+    return main.toDataURL('image/jpeg', 0.8);
+  }
+
+  // --- LOGIC GỬI VÀ TẢI ẢNH ---
+  async function takePhotoAndSend() {
+    const m = document.getElementById('mssv').value.trim();
+    const o = document.getElementById('otp').value.trim();
+    
+    if(!m || !o) return alert("⚠️ Vui lòng nhập đủ MSSV và OTP!");
+    if (hasForbiddenChars(m) || hasForbiddenChars(o)) return alert("❌ Lỗi: Thông tin chứa ký tự không hợp lệ (@, #, <, >...).");
+    if (!hasSigned) return alert("⚠️ Vui lòng ký tên xác nhận!");
+
+    const btn = document.getElementById('btn-capture');
+    const msg = document.getElementById('msg');
+    
+    try {
+        btn.disabled = true; 
+        
+        // 1. TRẠNG THÁI: ĐANG CHỤP
+        btn.innerHTML = "📸 Đang chụp ảnh...";
+        msg.innerText = "Giữ yên camera...";
+        await new Promise(r => setTimeout(r, 100));
+
+        // Tạo ảnh Base64
+        const imageBase64 = captureAll(m, o);
+
+        // 2. TRẠNG THÁI: ĐANG GỬI
+        btn.innerHTML = "🚀 Ảnh đã chụp xong, Đang up lên hệ thống...";
+        msg.innerText = "Đang lấy vị trí và gửi dữ liệu... (Vui lòng chờ)";
+        msg.style.color = "#e67e22";
+
+        navigator.geolocation.getCurrentPosition(async pos => {
+            
+            // 1. Đóng gói dữ liệu giống hệt cũ, nhưng bọc trong biến payload
+            let payload = {
+                action: "processAttendance",
+                data: {
+                    mssv: m, otp: o, deviceId: deviceId,
+                    lat: pos.coords.latitude, lon: pos.coords.longitude, 
+                    vCode: vCode, imageData: imageBase64
+                }
+            };
+
+            try {
+                // 2. Gửi dữ liệu bằng fetch (Phương thức POST)
+                let response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    redirect: "follow", // Bắt buộc phải có để đi theo chuyển hướng của Google
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Dùng text/plain để né lỗi bảo mật CORS
+                    body: JSON.stringify(payload)
+                });
+                
+                let res = await response.text();
+
+                // 3. Phần xử lý giao diện này GIỮ NGUYÊN 100% của anh
+                if(res.includes("✅")) {
+                    msg.style.color = "green";
+                    msg.innerText = "✅ Dữ liệu đã lên hệ thống. Vui lòng tải minh chứng.";
+                    
+                    btn.style.display = "none";
+                    
+                    const btnDownload = document.getElementById('btn-download');
+                    btnDownload.style.display = "block";
+                    btnDownload.href = imageBase64;
+                    btnDownload.download = m + "_MinhChung_" + attendanceTurn + ".jpg";
+                    
+                } else {
+                    msg.innerText = res;
+                    msg.style.color = "red";
+                    btn.disabled = false;
+                    btn.innerHTML = "📸 CHỤP ẢNH & GỬI DỮ LIỆU";
+                    alert(res); 
+                }
+            } catch(err) {
+                // Xử lý lỗi mạng
+                msg.innerText = "Lỗi mạng: Không thể gửi dữ liệu tới máy chủ.";
+                msg.style.color = "red";
+                btn.disabled = false;
+                btn.innerHTML = "📸 CHỤP ẢNH & GỬI DỮ LIỆU";
+                alert("Lỗi kết nối API!");
+            }
+
+        }, (err) => { 
+            throw new Error("Lỗi GPS: " + err.message + ". Hãy bật vị trí!");
+        }, { enableHighAccuracy: true, timeout: 10000 });
+
+    } catch (err) {
+        alert("❌ Đã xảy ra lỗi: " + err.message);
+        btn.disabled = false;
+        btn.innerHTML = "📸 CHỤP ẢNH & GỬI DỮ LIỆU";
+        msg.innerText = "Lỗi: " + err.message;
+        msg.style.color = "red";
+    }
+  }
+
+  // --- HÀM THÔNG BÁO CUỐI CÙNG ---
+  function finishAttendance() {
+      // Dùng setTimeout để đợi trình duyệt bắt đầu tải xuống rồi mới báo
+      setTimeout(() => {
+          alert("✅ Đã lưu ảnh về máy và điểm danh thành công!");
+          document.getElementById('msg').innerText = "🎉 HOÀN TẤT!";
+      }, 1000);
+  }
+</script>
+</body>
+</html>
