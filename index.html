@@ -279,6 +279,17 @@
             };
 
             try {
+                // ==========================================
+                // CHIẾN THUẬT JITTER: PHÂN LUỒNG NGẦM TẠI ĐÂY
+                // ==========================================
+                // Random một số từ 1000 đến 6000 (tức là 1 đến 6 giây)
+                let delayMs = Math.floor(Math.random() * 5000) + 1000; 
+                
+                // Tạm dừng việc thực thi code trong khoảng delayMs (Sinh viên vẫn thấy chữ "Đang gửi dữ liệu...")
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+                // ==========================================
+
+              
                 // 2. Gửi dữ liệu bằng fetch (Phương thức POST)
                 let response = await fetch(GAS_URL, {
                     method: 'POST',
